@@ -122,6 +122,45 @@ const useTags = () => {
         .map((i) => tagProp.options[i])
     : []
 
+  /**
+   * Per-property helpers — used by UIs that render all tag properties at
+   * once instead of going through the legacy "currently active tagProp"
+   * model.
+   */
+  const indicesFor = (propId: string): number[] =>
+    db?.tagSelections?.[propId] ?? []
+
+  const toggleTagFor = async (propId: string, index: number) => {
+    await mutateDbs((d) => {
+      const selections = { ...(d.tagSelections ?? {}) }
+      const current = selections[propId] ?? []
+      const exists = current.includes(index)
+      const next = exists
+        ? current.filter((i) => i !== index)
+        : [...current, index]
+      if (next.length === 0) delete selections[propId]
+      else selections[propId] = next
+      return { ...d, tagSelections: selections }
+    })
+  }
+
+  const setSingleTagFor = async (propId: string, index: number | null) => {
+    await mutateDbs((d) => {
+      const selections = { ...(d.tagSelections ?? {}) }
+      if (index === null || index < 0) delete selections[propId]
+      else selections[propId] = [index]
+      return { ...d, tagSelections: selections }
+    })
+  }
+
+  const clearFor = async (propId: string) => {
+    await mutateDbs((d) => {
+      const selections = { ...(d.tagSelections ?? {}) }
+      delete selections[propId]
+      return { ...d, tagSelections: selections }
+    })
+  }
+
   return {
     db,
     tagProp,
@@ -134,7 +173,11 @@ const useTags = () => {
     selectTagProp,
     selectTag,
     toggleTag,
-    clearTagsForProp
+    clearTagsForProp,
+    indicesFor,
+    toggleTagFor,
+    setSingleTagFor,
+    clearFor
   }
 }
 

@@ -92,7 +92,7 @@ export default function Wrapper() {
 
   if (databases.length == 0) {
     return (
-      <div className="flex flex-col p-3 w-64 text-base">
+      <div className="flex flex-col p-3 w-80 text-base">
         <img src={illustration} alt="Chat to Notion" />
         <SettingsPopup />
       </div>
@@ -100,7 +100,7 @@ export default function Wrapper() {
   }
 
   return (
-    <div className="flex flex-col p-3 w-64 text-base">
+    <div className="flex flex-col p-3 w-80 text-base">
       <img src={illustration} alt="Chat to Notion" />
       {popup !== "wrongpage" && (
         <div className="grid grid-cols-3 mb-1">

@@ -25,7 +25,6 @@ import { parseSave } from "~api/parseSave"
 import { saveChat } from "~api/saveChat"
 import Disclosure from "~common/components/Disclosure"
 import DropdownPopup from "~common/components/Dropdown"
-import NoTagButton from "~common/components/NoTagButton"
 import Spinner from "~common/components/Spinner"
 import LogoIcon from "~common/logo"
 import StarIcon from "~common/star"
@@ -59,17 +58,7 @@ function IndexPopup() {
     STORAGE_KEYS.openInNotion,
     false
   )
-  const {
-    db,
-    tag,
-    tagProp,
-    selectedIndices,
-    selectedTags,
-    selectTag,
-    toggleTag,
-    selectTagProp,
-    clearTagsForProp
-  } = useTags()
+  const { db, indicesFor, toggleTagFor, setSingleTagFor, clearFor } = useTags()
 
   const [authenticated] = useStorage(STORAGE_KEYS.authenticated, false)
   const [isPremium] = useStorage(STORAGE_KEYS.isPremium, false)
@@ -298,39 +287,37 @@ function IndexPopup() {
           </div>
           <div className="border mb-3" />
           {db?.tags && db?.tags.length > 0 ? (
-            <div className="flex justify-between items-start mb-3 gap-2">
-              <DropdownPopup
-                className="font-bold min-w-[4rem] text-left"
-                position="up"
-                items={db.tags.map((tag, index) => (
-                  <button
-                    className="py-1 px-3"
-                    key={tag.id}
-                    onClick={() => selectTagProp(index)}>
-                    {tag.name}
-                  </button>
-                ))}>
-                {tagProp?.name}
-              </DropdownPopup>
-              {tagProp?.type === "multi_select" ? (
-                <div className="flex flex-col items-end gap-1 max-w-[11rem]">
-                  <DropdownPopup
-                    className={`px-2 py-0.5 border border-main rounded ${
-                      selectedTags.length === 0 ? "italic font-bold" : ""
-                    }`}
-                    position="up"
-                    items={
-                      tagProp
-                        ? [
-                            ...tagProp.options.map((opt, index) => (
+            <div className="flex flex-col gap-3 mb-3">
+              {db.tags.map((prop) => {
+                const propIndices = indicesFor(prop.id)
+                const propSelected = propIndices
+                  .filter((i) => i >= 0 && i < prop.options.length)
+                  .map((i) => prop.options[i])
+                const isMulti = prop.type === "multi_select"
+                return (
+                  <div
+                    key={prop.id}
+                    className="flex justify-between items-start gap-2">
+                    <span className="font-bold min-w-[4rem] text-left pt-1">
+                      {prop.name}
+                    </span>
+                    {isMulti ? (
+                      <div className="flex flex-col items-end gap-1 max-w-[12rem]">
+                        <DropdownPopup
+                          className={`px-2 py-0.5 border border-main rounded ${
+                            propSelected.length === 0 ? "italic font-bold" : ""
+                          }`}
+                          position="up"
+                          items={[
+                            ...prop.options.map((opt, index) => (
                               <button
                                 className="py-1 px-3 flex items-center gap-2"
                                 key={opt.id}
-                                onClick={() => toggleTag(index)}>
+                                onClick={() => toggleTagFor(prop.id, index)}>
                                 <input
                                   type="checkbox"
                                   readOnly
-                                  checked={selectedIndices.includes(index)}
+                                  checked={propIndices.includes(index)}
                                 />
                                 <span>{opt.name}</span>
                               </button>
@@ -338,52 +325,56 @@ function IndexPopup() {
                             <button
                               className="py-1 px-3 italic text-sm"
                               key="__clear__"
-                              onClick={clearTagsForProp}>
+                              onClick={() => clearFor(prop.id)}>
                               {i18n("save_noTag")}
                             </button>
-                          ]
-                        : []
-                    }>
-                    {selectedTags.length === 0
-                      ? i18n("save_noTag")
-                      : `${selectedTags.length} selected`}
-                  </DropdownPopup>
-                  {selectedTags.length > 0 && (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {selectedTags.map((t) => (
-                        <span
-                          key={t.id}
-                          className="text-xs bg-gray-100 border rounded-full px-2 py-0.5">
-                          {t.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <DropdownPopup
-                  className={`px-2 py-0.5 border border-main rounded ${
-                    tag === null ? "italic font-bold" : ""
-                  }`}
-                  position="up"
-                  items={
-                    tagProp
-                      ? [
-                          ...tagProp.options.map((opt, index) => (
+                          ]}>
+                          {propSelected.length === 0
+                            ? i18n("save_noTag")
+                            : `${propSelected.length} selected`}
+                        </DropdownPopup>
+                        {propSelected.length > 0 && (
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {propSelected.map((t) => (
+                              <span
+                                key={t.id}
+                                className="text-xs bg-gray-100 border rounded-full px-2 py-0.5">
+                                {t.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <DropdownPopup
+                        className={`px-2 py-0.5 border border-main rounded ${
+                          propSelected.length === 0 ? "italic font-bold" : ""
+                        }`}
+                        position="up"
+                        items={[
+                          ...prop.options.map((opt, index) => (
                             <button
                               className="py-1 px-3"
                               key={opt.id}
-                              onClick={() => selectTag(index)}>
+                              onClick={() => setSingleTagFor(prop.id, index)}>
                               {opt.name}
                             </button>
                           )),
-                          <NoTagButton selectTag={selectTag} />
-                        ]
-                      : [<NoTagButton selectTag={selectTag} />]
-                  }>
-                  {tag === null ? i18n("save_noTag") : tag?.name}
-                </DropdownPopup>
-              )}
+                          <button
+                            className="py-1 px-3 italic text-sm"
+                            key="__clear__"
+                            onClick={() => setSingleTagFor(prop.id, null)}>
+                            {i18n("save_noTag")}
+                          </button>
+                        ]}>
+                        {propSelected.length === 0
+                          ? i18n("save_noTag")
+                          : propSelected[0]?.name}
+                      </DropdownPopup>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           ) : (
             <p className="text-sm mb-3">{i18n("dbsettings_noTags")}</p>
