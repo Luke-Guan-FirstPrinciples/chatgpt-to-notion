@@ -175,3 +175,53 @@ export const convertHeaders = (raw: { name: string; value?: string }[]) => {
     {} as any
   )
 }
+
+// Notion's create-page / append-children API accepts at most 2 levels of
+// nested children per request (body.children[i].*.children[j].*.children[k]
+// is rejected). `@tryfabric/martian` can produce deeper trees for heavily
+// nested markdown bullets. This walks the block tree and, for any block that
+// sits at the deepest allowed level, lifts its grandchildren up as siblings
+// so content is preserved at the cost of hierarchy past that depth.
+const MAX_NESTING_DEPTH = 2
+
+const getChildrenKey = (block: any): string | null => {
+  const type = block?.type
+  if (!type) return null
+  const typeObj = block[type]
+  if (typeObj && Array.isArray(typeObj.children)) return type
+  return null
+}
+
+export const limitBlockNesting = (
+  blocks: any[],
+  depth: number = 0
+): any[] => {
+  if (!Array.isArray(blocks)) return blocks
+  const out: any[] = []
+  for (const block of blocks) {
+    if (!block || typeof block !== "object") {
+      out.push(block)
+      continue
+    }
+    const childKey = getChildrenKey(block)
+    if (!childKey) {
+      out.push(block)
+      continue
+    }
+    const children: any[] = block[childKey].children
+    if (depth >= MAX_NESTING_DEPTH) {
+      const { children: _drop, ...rest } = block[childKey]
+      out.push({ ...block, [childKey]: rest })
+      out.push(...limitBlockNesting(children, depth))
+    } else {
+      out.push({
+        ...block,
+        [childKey]: {
+          ...block[childKey],
+          children: limitBlockNesting(children, depth + 1)
+        }
+      })
+    }
+  }
+  return out
+}

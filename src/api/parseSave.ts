@@ -3,7 +3,7 @@ import { decompress } from "shrink-string"
 import { Storage } from "@plasmohq/storage"
 
 import getNotion from "~config/notion"
-import { i18n } from "~utils/functions"
+import { i18n, limitBlockNesting } from "~utils/functions"
 import {
   generateBlocks,
   generateCanvasBlocks,
@@ -50,12 +50,17 @@ export const parseSave = async (
     const canvasBlocks = generateCanvasBlocks(textDocs)
     blocks.push(...canvasBlocks)
 
+    // Notion rejects any request containing `.children` more than 2 levels
+    // deep. Deeply nested markdown bullets from the LLM can produce that, so
+    // we flatten any extra nesting before chunking.
+    const flattenedBlocks = limitBlockNesting(blocks, 0)
+
     const chunks: any[][] = []
     const chunkSize = 95 // We define a chunk size of 95 blocks
     // Notion API has a limit of 100 blocks per request but we'd rather be conservative
-    const chunksCount = Math.ceil(blocks.length / chunkSize)
+    const chunksCount = Math.ceil(flattenedBlocks.length / chunkSize)
     for (let i = 0; i < chunksCount; i++) {
-      chunks.push(blocks.slice(i * chunkSize, (i + 1) * chunkSize))
+      chunks.push(flattenedBlocks.slice(i * chunkSize, (i + 1) * chunkSize))
     }
 
     const tag = generateTag(tags[tagPropertyIndex], tagIndex)
