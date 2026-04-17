@@ -17,16 +17,15 @@ export const saveChat = async (
   try {
     const notion = await getNotion()
     let {
-      model,
       title,
-      url,
       database,
       chunks,
+      properties,
       generateHeadings,
       conflictingPageId,
       saveBehavior
     } = params
-    const { propertiesIds, tags, tagPropertyIndex, tag } = database
+    const { propertiesIds } = database
 
     if (conflictingPageId) {
       switch (saveBehavior) {
@@ -38,6 +37,12 @@ export const saveChat = async (
           break
         case "ignore":
           title = `${title} (bis)`
+          properties = {
+            ...properties,
+            [propertiesIds.title]: {
+              title: [{ text: { content: title } }]
+            }
+          }
           break
       }
     }
@@ -63,36 +68,7 @@ export const saveChat = async (
             url: "https://upload.wikimedia.org/wikipedia/commons/0/04/ChatGPT_logo.svg"
           }
         },
-        properties: tag
-          ? {
-              [propertiesIds.title]: {
-                title: [
-                  {
-                    text: {
-                      content: title
-                    }
-                  }
-                ]
-              },
-              [propertiesIds.url]: {
-                url
-              },
-              [tags[tagPropertyIndex].id]: tag
-            }
-          : {
-              [propertiesIds.title]: {
-                title: [
-                  {
-                    text: {
-                      content: title
-                    }
-                  }
-                ]
-              },
-              [propertiesIds.url]: {
-                url
-              }
-            },
+        properties,
         children: generateHeadings
           ? [table_of_contents, ...chunks[0]]
           : [...chunks[0]]

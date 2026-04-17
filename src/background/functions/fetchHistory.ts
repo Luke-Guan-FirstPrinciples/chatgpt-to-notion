@@ -1,13 +1,22 @@
 import { getHistory } from "~api/getHistory"
+import { listChatGPTProjectConversationIds } from "~models/chatgpt/api/listProjects"
 import { convertHeaders } from "~utils/functions"
 import type { SupportedModels } from "~utils/types"
 
 const fetchHistory = async (
   model: SupportedModels,
-  rawHeaders: { name: string; value?: string }[]
+  rawHeaders: { name: string; value?: string }[],
+  projectId?: string
 ) => {
   // TODO: update le cookie probablement
   const headers = convertHeaders(rawHeaders)
+
+  // Project-scoped history is currently only supported for ChatGPT because
+  // projects are a ChatGPT-specific concept.
+  if (projectId && model === "chatgpt") {
+    return listChatGPTProjectConversationIds(headers, projectId)
+  }
+
   const { data, ids } = await getHistory({
     model: model as any,
     params: headers

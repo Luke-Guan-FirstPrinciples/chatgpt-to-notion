@@ -24,7 +24,12 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
       throw new Error("Model mismatch, please refresh this conversation's tab")
     }
 
-    const fetchHistoryRes = await fetchHistory(model, cacheHeaders.headers)
+    const projectId: string | undefined = req.body?.projectId
+    const fetchHistoryRes = await fetchHistory(
+      model,
+      cacheHeaders.headers,
+      projectId
+    )
 
     const saveHistoryRes = await saveHistory(
       model,

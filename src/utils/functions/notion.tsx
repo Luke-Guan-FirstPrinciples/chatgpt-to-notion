@@ -361,7 +361,7 @@ export const generateTag = (
   tagIndex: number
 ) => {
   if (tagIndex === -1 || !params.options) return undefined
-  const { options, type, id } = params
+  const { options, type } = params
   return type === "select"
     ? { select: { id: options[tagIndex].id } }
     : {
@@ -369,7 +369,36 @@ export const generateTag = (
       }
 }
 
-export const formatDB = (db: DatabaseObjectResponse): StoredDatabase | null => {
+/**
+ * Build the per-property property-values payload for Notion from the user's
+ * stored selections. Returns an object mapping property-id to the Notion
+ * property value shape, ready to merge into `pages.create({ properties: ... })`.
+ */
+export const generateTagProperties = (database: StoredDatabase) => {
+  const out: Record<string, any> = {}
+  const selections = database.tagSelections ?? {}
+  for (const tag of database.tags) {
+    const indices = selections[tag.id] ?? []
+    if (indices.length === 0) continue
+    if (tag.type === "select") {
+      const idx = indices[0]
+      if (idx < 0 || idx >= tag.options.length) continue
+      out[tag.id] = { select: { id: tag.options[idx].id } }
+    } else {
+      const options = indices
+        .filter((i) => i >= 0 && i < tag.options.length)
+        .map((i) => ({ id: tag.options[i].id }))
+      if (options.length === 0) continue
+      out[tag.id] = { multi_select: options }
+    }
+  }
+  return out
+}
+
+export const formatDB = (
+  db: DatabaseObjectResponse,
+  previous?: StoredDatabase | null
+): StoredDatabase | null => {
   const properties = Object.values(db.properties)
   const titleID = properties.filter((val) => val.type === "title")[0].id
   const urls = properties.filter((val) => val.type === "url")
@@ -377,7 +406,29 @@ export const formatDB = (db: DatabaseObjectResponse): StoredDatabase | null => {
   const urlID = urls[0].id
   const tags = getDBTagsProperties(db)
 
-  const formattedDB = {
+  const richTextProps = Object.entries(db.properties)
+    .filter(([, val]) => val.type === "rich_text")
+    .map(([name, val]) => ({ id: (val as any).id, name }))
+
+  // Preserve the user's previous per-property selections where the property
+  // still exists on the (possibly refreshed) database.
+  const previousSelections = previous?.tagSelections ?? {}
+  const tagSelections: Record<string, number[]> = {}
+  for (const tag of tags) {
+    if (!previousSelections[tag.id]) continue
+    const validIndices = previousSelections[tag.id].filter(
+      (i) => i >= 0 && i < (tag as any)[tag.type].options.length
+    )
+    if (validIndices.length > 0) tagSelections[tag.id] = validIndices
+  }
+
+  const promptsPropertyId =
+    previous?.promptsPropertyId &&
+    richTextProps.some((p) => p.id === previous?.promptsPropertyId)
+      ? previous.promptsPropertyId
+      : null
+
+  const formattedDB: StoredDatabase = {
     id: db.id,
     title: db.title[0].plain_text,
     icon: db.icon,
@@ -396,8 +447,11 @@ export const formatDB = (db: DatabaseObjectResponse): StoredDatabase | null => {
             : prop.select.options
       }
     }),
-    tagPropertyIndex: 0,
-    tagIndex: -1
+    tagPropertyIndex: previous?.tagPropertyIndex ?? 0,
+    tagIndex: previous?.tagIndex ?? -1,
+    tagSelections,
+    richTextProps,
+    promptsPropertyId
   }
 
   return formattedDB

@@ -25,6 +25,11 @@ export type Error = {
   status?: number | null
 }
 
+export type RichTextProperty = {
+  id: string
+  name: string
+}
+
 export type StoredDatabase = {
   id: string
   title: string
@@ -39,8 +44,16 @@ export type StoredDatabase = {
     id: string
     type: "select" | "multi_select"
   }[]
+  /** Legacy single-selection (kept for back-compat). Per-property selection now lives in `tagSelections`. */
   tagIndex: number
   tagPropertyIndex: number
+  /** Per-property selection. For a `select` property it's a single index array (or empty);
+   * for a `multi_select` property it can hold multiple indices. Keyed by property id. */
+  tagSelections?: Record<string, number[]>
+  /** Rich-text properties present in the DB, available as "prompts column" targets. */
+  richTextProps?: RichTextProperty[]
+  /** If set, the joined user prompts are written into this rich-text property at save time. */
+  promptsPropertyId?: string | null
 }
 
 export type PopupEnum =

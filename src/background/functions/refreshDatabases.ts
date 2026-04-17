@@ -11,14 +11,15 @@ const refreshDatabases = async () => {
   const databases = await storage.get<StoredDatabase[]>(STORAGE_KEYS.databases)
   if (!databases) return
 
-  const apiCalls = databases.filter((db) => db).map((db) => getDatabase(db.id))
+  const storedDbs = databases.filter((db) => db)
+  const apiCalls = storedDbs.map((db) => getDatabase(db.id))
   const fullDatabases = await Promise.all(apiCalls)
 
   let refreshedDatabases: StoredDatabase[] = []
   for (let i = 0; i < fullDatabases.length; i++) {
     const db = fullDatabases[i]
     if (!db) continue
-    const formattedDB = formatDB(db)
+    const formattedDB = formatDB(db, storedDbs[i])
     if (!formattedDB) continue
     refreshedDatabases.push(formattedDB)
   }

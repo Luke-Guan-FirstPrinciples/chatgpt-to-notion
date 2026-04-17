@@ -58,12 +58,30 @@ function DatabaseSettingsPopup() {
       prev
         ? [
             ...prev.slice(0, selectedDB),
-            formatDB(db)!,
+            formatDB(db, prev[selectedDB])!,
             ...prev.slice(selectedDB + 1)
           ]
         : [formatDB(db)!]
     )
     setRefreshing(false)
+  }
+
+  // Auto-refresh when the popup opens so that properties added in Notion
+  // since the database was last linked show up immediately.
+  useEffect(() => {
+    if (databases && databases[selectedDB] && !refreshing) {
+      refreshDatabase()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const setPromptsPropertyId = async (id: string | null) => {
+    setDatabases((prev) => {
+      if (!prev) return []
+      const next = [...prev]
+      next[selectedDB] = { ...next[selectedDB], promptsPropertyId: id }
+      return next
+    })
   }
 
   const selectTagProp = (index: number) => {
@@ -110,6 +128,45 @@ function DatabaseSettingsPopup() {
               </button>
             </div>
           </div>
+          <h3 className="font-semibold my-2">User prompts column</h3>
+          {(db.richTextProps ?? []).length === 0 ? (
+            <p className="text-sm">
+              No text properties found. Add a "Text" property in Notion, then
+              hit refresh.
+            </p>
+          ) : (
+            <div className="flex items-center gap-2">
+              <DropdownPopup
+                className="px-1 border border-main rounded min-w-[6rem] text-left"
+                position="down"
+                items={[
+                  <button
+                    key="__none__"
+                    className="py-1 px-3 italic"
+                    onClick={() => setPromptsPropertyId(null)}>
+                    (don't save prompts as a column)
+                  </button>,
+                  ...(db.richTextProps ?? []).map((prop) => (
+                    <button
+                      className="py-1 px-3"
+                      key={prop.id}
+                      onClick={() => setPromptsPropertyId(prop.id)}>
+                      {prop.name}
+                    </button>
+                  ))
+                ]}>
+                {db.promptsPropertyId
+                  ? db.richTextProps?.find(
+                      (p) => p.id === db.promptsPropertyId
+                    )?.name ?? "(missing)"
+                  : "(none)"}
+              </DropdownPopup>
+              <p className="text-xs text-gray-600">
+                Concatenates all user messages into this text property.
+              </p>
+            </div>
+          )}
+          <div className="border my-3" />
           {db.tags.length == 0 ? (
             <p>{i18n("dbsettings_noTags")}</p>
           ) : (

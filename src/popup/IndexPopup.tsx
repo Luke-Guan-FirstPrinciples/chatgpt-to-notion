@@ -59,7 +59,17 @@ function IndexPopup() {
     STORAGE_KEYS.openInNotion,
     false
   )
-  const { db, tag, tagProp, selectTag, selectTagProp } = useTags()
+  const {
+    db,
+    tag,
+    tagProp,
+    selectedIndices,
+    selectedTags,
+    selectTag,
+    toggleTag,
+    selectTagProp,
+    clearTagsForProp
+  } = useTags()
 
   const [authenticated] = useStorage(STORAGE_KEYS.authenticated, false)
   const [isPremium] = useStorage(STORAGE_KEYS.isPremium, false)
@@ -288,7 +298,7 @@ function IndexPopup() {
           </div>
           <div className="border mb-3" />
           {db?.tags && db?.tags.length > 0 ? (
-            <div className="flex justify-between items-center mb-3">
+            <div className="flex justify-between items-start mb-3 gap-2">
               <DropdownPopup
                 className="font-bold min-w-[4rem] text-left"
                 position="up"
@@ -302,28 +312,78 @@ function IndexPopup() {
                 ))}>
                 {tagProp?.name}
               </DropdownPopup>
-              <DropdownPopup
-                className={`px-2 py-0.5 border border-main rounded ${
-                  tag === null ? "italic font-bold" : ""
-                }`}
-                position="up"
-                items={
-                  tagProp
-                    ? [
-                        ...tagProp.options.map((tag, index) => (
-                          <button
-                            className="py-1 px-3"
-                            key={tag.id}
-                            onClick={() => selectTag(index)}>
-                            {tag.name}
-                          </button>
-                        )),
-                        <NoTagButton selectTag={selectTag} />
-                      ]
-                    : [<NoTagButton selectTag={selectTag} />]
-                }>
-                {tag === null ? i18n("save_noTag") : tag?.name}
-              </DropdownPopup>
+              {tagProp?.type === "multi_select" ? (
+                <div className="flex flex-col items-end gap-1 max-w-[11rem]">
+                  <DropdownPopup
+                    className={`px-2 py-0.5 border border-main rounded ${
+                      selectedTags.length === 0 ? "italic font-bold" : ""
+                    }`}
+                    position="up"
+                    items={
+                      tagProp
+                        ? [
+                            ...tagProp.options.map((opt, index) => (
+                              <button
+                                className="py-1 px-3 flex items-center gap-2"
+                                key={opt.id}
+                                onClick={() => toggleTag(index)}>
+                                <input
+                                  type="checkbox"
+                                  readOnly
+                                  checked={selectedIndices.includes(index)}
+                                />
+                                <span>{opt.name}</span>
+                              </button>
+                            )),
+                            <button
+                              className="py-1 px-3 italic text-sm"
+                              key="__clear__"
+                              onClick={clearTagsForProp}>
+                              {i18n("save_noTag")}
+                            </button>
+                          ]
+                        : []
+                    }>
+                    {selectedTags.length === 0
+                      ? i18n("save_noTag")
+                      : `${selectedTags.length} selected`}
+                  </DropdownPopup>
+                  {selectedTags.length > 0 && (
+                    <div className="flex flex-wrap justify-end gap-1">
+                      {selectedTags.map((t) => (
+                        <span
+                          key={t.id}
+                          className="text-xs bg-gray-100 border rounded-full px-2 py-0.5">
+                          {t.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <DropdownPopup
+                  className={`px-2 py-0.5 border border-main rounded ${
+                    tag === null ? "italic font-bold" : ""
+                  }`}
+                  position="up"
+                  items={
+                    tagProp
+                      ? [
+                          ...tagProp.options.map((opt, index) => (
+                            <button
+                              className="py-1 px-3"
+                              key={opt.id}
+                              onClick={() => selectTag(index)}>
+                              {opt.name}
+                            </button>
+                          )),
+                          <NoTagButton selectTag={selectTag} />
+                        ]
+                      : [<NoTagButton selectTag={selectTag} />]
+                  }>
+                  {tag === null ? i18n("save_noTag") : tag?.name}
+                </DropdownPopup>
+              )}
             </div>
           ) : (
             <p className="text-sm mb-3">{i18n("dbsettings_noTags")}</p>
@@ -387,13 +447,12 @@ function IndexPopup() {
             />
             <label htmlFor="openInNotion">Open in Notion</label>
           </div>
-          {!(isPremium || activeTrial) ? (
-            <button
-              onClick={() => setPopup("premium")}
-              className="button-outline text-sm font-normal">
-              {i18n("index_tryPremium")}
-            </button>
-          ) : (
+          <button
+            className="button-outline text-sm font-normal w-full mt-2"
+            onClick={() => setPopup("history")}>
+            {i18n("history")}
+          </button>
+          {(isPremium || activeTrial) && (
             <Disclosure
               title={i18n("index_premiumFeatures")}
               className="my-2 text-yellow-500 font-semibold bg-yellow-50 rounded">
@@ -406,11 +465,6 @@ function IndexPopup() {
                     ? i18n("autosave_disable")
                     : i18n("autosave_enable")
                   : i18n("autosave_wrongpage")}
-              </button>
-              <button
-                className="button-outline text-sm font-normal w-full"
-                onClick={() => setPopup("history")}>
-                {i18n("history")}
               </button>
             </Disclosure>
           )}
